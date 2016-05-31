@@ -1,0 +1,31 @@
+Installation Instructions
+=========================
+
+The latest libnxtbt sources can be obtained at <https://github.com/daniel-32/libnxtbt> and the latest source release at <https://github.com/daniel-32/libnxtbt/releases/latest>.
+
+Prerequisities
+--------------
+
+libnxtbt has no dependencies.
+
+Compiling libnxtbt
+------------------
+
+From the directory where the libnxtbt sources are extracted, run:
+
+    $ ./autogen.sh
+    $ ./configure
+    $ make
+
+libnxtbt uses the GNU Autotools build system, and the configure script supports a wide range of options to customise the way that libnxtbt is built. Please consult the documentation on Autotools for further information.
+
+Installing libnxtbt
+-------------------
+
+After compiling nxtcli, run:
+
+    # make install
+
+You will usually need to be root to install libnxtbt, unless you have configured libnxtbt not to install system-wide.
+
+After installation, you may need to update your system's dynamic linker in order to use libnxtbt, especially if you have installed libnxtbt in a non-standard location. Please consult your system's documentation for further information.

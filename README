@@ -1,0 +1,161 @@
+libnxtbt
+========
+
+libnxtbt is a C library to simplify communication with and control of a LEGO NXT device attached over Bluetooth. By using libnxtbt, applications are able to play sounds, start and stop programs, read sensor values, control output ports, and send messages to a program running on the NXT (this list is not exhaustive; please consult the library's header file and the LEGO NXT Bluetooth developer documentation to see all available commands).
+
+Motivation
+----------
+
+libnxtbt was originally developed as part of nxtcli (<https://github.com/daniel-32/nxtcli>), a command-line utility to control a LEGO NXT device, but was moved to a separate library so that it can be reused in other applications which also need to communicate with the NXT. It provides an easy-to-use API for sending commands and receiving response from the NXT, abstracting the complexities of the NXT communication protocol while giving the developer full control over the communication that takes place.
+
+API
+---
+
+The LEGO NXT Bluetooth communication protocol works on the principle of commands which are executed by the NXT firmware. Each command may take one or more parameters, and will return at least a status (result) code but may also return additional values. Each value in a command's parameters or responses has one of the following types and formats:
+* boolean  
+  a single byte holding either true (-1) or false (0)
+
+* ubyte  
+  a single unsigned byte holding any value from 0 to 255
+
+* sbyte  
+  a single signed byte holding any value from -128 to 127
+
+* uword  
+  an unsigned word (two bytes) holding any value from 0 to 65535
+
+* sword  
+  a signed word (two bytes) holding any value from -32768 to 32767
+
+* ulong  
+  an unsigned long (four bytes) holding any value from 0 to 4294967296
+
+* slong  
+  a signed long (four bytes) holding any value from -2147483648 to 2147483647
+
+* bytes  
+  an array of bytes; the array is neither lengh-prefixed nor null terminated, the length is calculated from the total length of the command or response packet or is indicated by a separate parameter or response value
+
+* string  
+  a null-terminated ASCII string
+
+* filename  
+  a null-terminated ASCII string of at most 19 characters (20 bytes) in the format of a valid NXT filename (15 characters, a dot, and a 3-character extension - please consult the LEGO NXT Bluetooth developer documentation for further details on valid filenames and wildcards on the NXT)
+
+libnxtbt provides a single function to call commands on the NXT. This function takes as parameters an nxtCommand specifying the command to execute, a pointer to an array of nxtParameters giving each of the parameters for the command, a pointer to an array of nxtResponses which will be populated with the responses sent by the NXT, and two values giving the number of parameters to send and the expected number of responses. These types are explained in more detail below.
+
+### Types
+
+libnxtbt defines the following types:
+
+#### nxtCommand
+
+This is an enumerated type with values corresponding to the commands understood by the NXT firmware. Please consult the library's header file and the LEGO Bluetooth developer documentation to see all available commands and their expected parameters and responses.
+
+#### nxtParameter, nxtResponse
+
+These two structures associate an nxtType, an nxtValue, and a length value together for use in a command parameter or response. The length field is ignored for all nxtTypes except NXT_TYPE_BYTES (for which it is required) and NXT_TYPE_STRING (for which it is optional and should be set to -1 if unused). For these types, it is used as follows:
+
+* NXT_TYPE_BYTES  
+  In parameters, gives the length of the byte array passed in the nxtValue field of an nxtParameter or nxtResponse. In responses, it is set by libnxtbt to the length of the byte array returned.
+
+* NXT_TYPE_STRING  
+  In parameters, gives the length of the string expected by the NXT, as some commands take a fixed-length string parameter even though the actual string length may vary; unused characters are padded with null bytes. In responses, it should be set by the caller and gives the number of characters that will be returned by the NXT, as some commands return a fixed-length string response even though the actual string length may vary, so that libnxtbt knows how many bytes to remove from the response buffer even if the actual string data is shorter.
+
+#### nxtType
+
+This is an enumerated type with values identifying each of the types used in command parameters and responses, as listed above. For the nxtTypes that hold a single numerical value, there are also macros defined such as NXT_UWORD_MIN and NXT_UWORD_MAX which give the minimum and maximum values that can be held by that type.
+
+#### nxtValue
+
+This is a union of C types corresponding to the storage unit of each of the types used in command parameters and responses. The bytes, string, and filename members are pointers to arrays. In parameters, the caller is expected to free the arrays when no longer needed. In responses, the libnxtbt allocates the arrays as required and the caller is required to free them.
+
+#### nxtStatus
+
+This is an enumerated type with values corresponding to the status codes returned by the NXT for each command. It can be used to make code more readable by assigning meaningful names to the status codes.
+
+#### nxtLibError
+
+This is an enumerated type with values corresponding to the error codes returned by libnxtbt itself. It can be used to make code more readable by assigning meaningful names to the error codes.
+
+### Functions
+
+libnxtbt provides the following functions:
+
+#### void nxtOpen(const char* device);
+
+This function opens the device file specified by `device` (e.g. /dev/rfcomm0) and uses it for following communication with the NXT. This function must be called to open a device file before any command can be sent.
+
+#### void nxtClose();
+
+This function closes the device file opened with `void nxtOpen(const char* device);`.
+
+#### int nxtDoCommand(nxtCommand command, nxtParameter parameters[], nxtResponse responses[], int parameter_count, int response_count);
+
+This function sends the command specified by `command` with the parameters in `parameters[]` (number of parameters given by `parameter_count`) to the NXT device. It attempts to receive `response_count` responses, with which it populates `responses[]`. `responses[]` must be large enough to hold all of the responses, including the status code of type ubyte which is always the first response, and the type field of each nxtResponse should be filled with the expected response type. For NXT_TYPE_BYTES, the length field will be filled by libnxtbt with the number of bytes received. For NXT_TYPE_STRING, the length field may be filled by the caller to specify the expected number of bytes, in the event that the NXT returns a fixed-length response even if the actual string data is shorter; if the length field is not used in this manner it should be set by the caller to -1. For NXT_TYPE_BYTES, NXT_TYPE_STRING, and NXT_TYPE_FILENAME, libnxtbt will allocate an array for the response data, which must be freed by the caller using `free()`. Please consult the library's header file and the LEGO Bluetooth developer documentation to see all available commands and their expected parameters and responses.
+
+This function also returns a result code from libnxtbt itself. If this code is positive, it returns the actual number of responses received (in case fewer responses were received than were expected by the caller). If this code is negative, it indicates an error according to the enumeration nxtLibError. Please consult the library's header file for a list of error codes and their meanings.
+
+#### char* nxtStatusString(nxtStatus status);
+
+This function returns a string describing `status` in English. The string must be freed by the caller using `free()` when no longer needed.
+
+#### char* nxtLibErrorString(nxtLibError liberror);
+
+This function returns a string describing `liberror` in English. The string must be freed by the caller using `free()` when no longer needed.
+
+Example
+-------
+
+The following code plays a tone on the NXT attached to the device file given on the command line:
+
+    #include <stdio.h>
+    #include <stdlib.h>
+    #include <libnxtbt/libnxtbt.h>
+    
+    int main(int argc, char* argv[])
+    {
+        nxtCommand   play_tone_command = NXT_CMD_PLAYTONE;
+        nxtParameter nxt_parameters[2];
+        nxtResponse  nxt_responses[1];
+        int          libnxtbt_result;
+        char*        nxt_status;
+    
+        // open the device file
+        nxtOpen(argv[1]);
+    
+        // execute the command
+        nxt_parameters[0].type = NXT_TYPE_UWORD;
+        nxt_parameters[0].value.uword = 440; // frequency of tone
+        nxt_parameters[1].type = NXT_TYPE_UWORD;
+        nxt_parameters[1].value.uword = 250; // duration of tone
+        nxt_responses[0].type = NXT_TYPE_UBYTE; // status
+        libnxtbt_result = nxtDoCommand(play_tone_command, nxt_parameters, nxt_responses, 2, 1);
+    
+        // display error from libnxtbt (if any)
+        if (libnxtbt_result < 0)
+        {
+            char* libnxtbt_error;
+    
+            libnxtbt_error = nxtLibErrorString(libnxtbt_result);
+            printf("libnxtbt error: %s\n", libnxtbt_error);
+            free(libnxtbt_error);
+        }
+    
+        // display status code returned from NXT
+        nxt_status = nxtStatusString(nxt_responses[0].value.ubyte);
+        printf("NXT status: %s\n", nxt_status);
+        free(nxt_status);
+    
+        // close the device file
+        nxtClose();
+    }
+
+License
+-------
+
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with this program. If not, see <http://www.gnu.org/licenses/>
