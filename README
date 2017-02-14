@@ -6,7 +6,7 @@ libnxtbt is a C library to simplify communication with and control of a LEGO NXT
 Motivation
 ----------
 
-libnxtbt was originally developed as part of nxtcli (<https://github.com/daniel-32/nxtcli>), a command-line utility to control a LEGO NXT device, but was moved to a separate library so that it can be reused in other applications which also need to communicate with the NXT. It provides an easy-to-use API for sending commands and receiving response from the NXT, abstracting the complexities of the NXT communication protocol while giving the developer full control over the communication that takes place.
+libnxtbt was originally developed as part of nxtcli (<https://github.com/danielmeek32/nxtcli>), a command-line utility to control a LEGO NXT device, but was moved to a separate library so that it can be reused in other applications which also need to communicate with the NXT. It provides an easy-to-use API for sending commands and receiving response from the NXT, abstracting the complexities of the NXT communication protocol while giving the developer full control over the communication that takes place.
 
 API
 ---
